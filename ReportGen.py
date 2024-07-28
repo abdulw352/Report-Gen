@@ -1,11 +1,12 @@
 import os
 from typing import List, Dict, Any
 from langchain import LLMChain, PromptTemplate
-from langchain.llms import Ollama
+from langchain.llms import Ollama, HuggingFacePipeline
 from langchain.document_loaders import TextLoader, CSVLoader
 from langchain.sql_database import SQLDatabase
 from langchain.agents import create_sql_agent
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
 class ReportGenerator:
     def __init__(self, llm_type: str = "ollama", model_name: str = "llama2"):
@@ -16,6 +17,19 @@ class ReportGenerator:
     def _initialize_llm(self, llm_type: str, model_name: str):
         if llm_type == "ollama":
             return Ollama(model=model_name)
+        elif llm_type == "huggingface":
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            model = AutoModelForCausalLM.from_pretrained(model_name)
+            pipe = pipeline(
+                "text-generation",
+                model=model,
+                tokenizer=tokenizer,
+                max_length=512,
+                temperature=0.7,
+                top_p=0.95,
+                repetition_penalty=1.15
+            )
+            return HuggingFacePipeline(pipeline=pipe)
         # Add more LLM types as needed
         raise ValueError(f"Unsupported LLM type: {llm_type}")
 
@@ -66,15 +80,26 @@ class ReportGenerator:
 
 # Example usage
 if __name__ == "__main__":
-    report_gen = ReportGenerator(llm_type="ollama", model_name="llama2")
+    # Using Ollama
+    report_gen_ollama = ReportGenerator(llm_type="ollama", model_name="llama2")
+    
+    # Using Hugging Face model
+    report_gen_hf = ReportGenerator(llm_type="huggingface", model_name="gpt2")  # or any other model available on Hugging Face
     
     # Connect to a SQL database
-    report_gen.connect_to_data_source("sql", connection_string="sqlite:///example.db")
+    report_gen_ollama.connect_to_data_source("sql", connection_string="sqlite:///example.db")
+    report_gen_hf.connect_to_data_source("sql", connection_string="sqlite:///example.db")
     
     # Set report elements
-    report_gen.set_report_elements(["Introduction", "Key Findings", "Detailed Analysis", "Conclusion"])
+    report_elements = ["Introduction", "Key Findings", "Detailed Analysis", "Conclusion"]
+    report_gen_ollama.set_report_elements(report_elements)
+    report_gen_hf.set_report_elements(report_elements)
     
-    # Generate the report
-    report = report_gen.generate_report("Market Trends in E-commerce")
+    # Generate the reports
+    report_ollama = report_gen_ollama.generate_report("Market Trends in E-commerce")
+    report_hf = report_gen_hf.generate_report("Market Trends in E-commerce")
     
-    print(report)
+    print("Report generated using Ollama:")
+    print(report_ollama)
+    print("\nReport generated using Hugging Face model:")
+    print(report_hf)
