@@ -60,7 +60,8 @@ class ReportGenerator:
                 agent_executor = create_sql_agent(
                     llm=self.llm,
                     toolkit=SQLDatabaseToolkit(db=self.data_source, llm=self.llm),
-                    verbose=True
+                    verbose=True,
+                    handle_parsing_errors=True
                 )
                 result = agent_executor.run(
                     f"Generate a report section about {element} related to {topic} using the available data."
